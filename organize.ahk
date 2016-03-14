@@ -63,9 +63,6 @@ Loop, %0% ; For each command line argument (conf file)
 		GuiControl,, OverwriteIfNotOlder, %OverwriteIfNotOlder%
 		GuiControl,, OverwriteIfNotSmaller, %OverwriteIfNotSmaller%
 		
-		
-		;msgbox, %LoopPattern%`, %IncludeSubfolders%`, %OverwriteIfNotOlder%`, %OverwriteIfNotSmaller%`, %FindMask%`, %ReplaceMask%
-		
 		Organize(Match_LoopPattern, IncludeSubfolders, OverwriteIfNotOlder, OverwriteIfNotSmaller, Match_FindMask, Match_ReplaceMask)
 	}	
 }
@@ -88,7 +85,6 @@ updateExample:
 	{
 		Last_FindMask := FindMask
 		Last_ReplaceMask := ReplaceMask
-		;msgbox, % LoopPattern ", " Last_LoopPattern ", " IncludeSubfolders ", " Last_IncludeSubfolders  ", " fileCount  ", " ExampleInput
 		fileCount = 0
 		loop, %LoopPattern%,,%IncludeSubfolders%
 		{
@@ -117,7 +113,6 @@ updateExample:
 				OldPath = %A_LoopFileDir%\%OldPath%
 			ExampleInput := OldPath 
 			ExampleOutput := RegExReplace(ExampleInput, FindMask, ReplaceMask)
-			;Msgbox, "%exampleinput%" `n "%exampleoutput%"
 			if (ExampleInput = ExampleOutput)
 			{
 				ExampleUnchanged .= ExampleInput "`n"
@@ -135,8 +130,6 @@ updateExample:
 				break	
 		}
 	}
-	;else
-	;	Msgbox, Cached fileCount: %fileCount%
 		
 	if fileCount = "NONE"
 	{
@@ -147,9 +140,6 @@ updateExample:
 	Gui, Font, cGreen  
 	GuiControl, Font, LoopPattern
 
-
-
-	;MsgBox, ExampleInput:%ExampleInput%`nFindMask: "%FindMask%"`nReplaceMask:"%ReplaceMask%"`nExampleOutput:"%ExampleOutput%"
 	GuiControl,,ExampleUnchanged, %ExampleUnchanged%
 	GuiControl,,ExampleChanged, %ExampleChanged%
 	GuiControl,,ExampleChangedTo, %ExampleChangedTo%
@@ -192,14 +182,9 @@ Organize(LoopPattern, IncludeSubfolders, OverwriteIfNotOlder, OverwriteIfNotSmal
 		
 		if(NewFolder)
 			FileCreateDir, %NewFolder%
-		/*
-		doTryAgain = true
-		while (doTryAgain)
-		{
-		*/
+
 		if(OldPath <> NewPath)
 		{
-			;MsgBox, OldPath: "%OldPath%"`nFindMask: "%FindMask%"`nReplaceMask:"%ReplaceMask%"`nNewPath:"%NewPath%"`nNewFolder:"%NewFolder%"
 			ifExist, %NewPath%
 			{
 				FileGetSize TargetSize, %NewPath%
@@ -245,26 +230,6 @@ Organize(LoopPattern, IncludeSubfolders, OverwriteIfNotOlder, OverwriteIfNotSmal
 				GuiControl,,ExampleUnchanged, %ExampleUnchanged%
 			}
 		}
-		/*	<folder>\<u>\<file>
-		<folder>_<u>\<file>
-		
-		Why_2\*.*
-		<folder>\<file>
-		<folder>__\<file>
-		
-		if(ErrorLevel)
-			{
-				Msgbox, 2, File Copy Error, ERROR! %ErrorLevel% file(s) could not be moved.`nFrom: %OldPath%`nTo:%NewPath%
-				IfMsgBox, Cancel
-				{
-					GuiControl,,ProgressBar, 0
-					return
-				}
-				IfMsgBox, Continue
-					doTryAgain = false
-			}
-		}
-		*/
 		
 		GuiControl,,ProgressBar,% 100 * A_Index / FileCount   ;%
 	}
@@ -277,7 +242,6 @@ PrepareMasks(ByRef FindMask, ByRef ReplaceMask)
 	FindMask := RegExReplace(FindMask, "iJ)([\.\?\+\[\{\|\(\)\^\$\\])","\$1")
 	StringReplace, FindMask, FindMask, *, [^""><]*, All
 	FindMask := RegExReplace(FindMask, "iJ)<(.+?)>(.*)<\1>","<$1>$2\k'$1'")
-	;//msgbox, % RegexMatch("a-a", "iJ)(?P<f>.*)-\k<f>", match) ;%
 	FindMask := RegExReplace(FindMask, "iJ)<(.+?)>","(?P<$1>.*)")
 	ReplaceMask := RegExReplace(ReplaceMask, "i)<(.+?)>","$${$1}")
 	StringReplace, ReplaceMask, ReplaceMask, *, [^""><]*, All
