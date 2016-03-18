@@ -67,6 +67,12 @@ Loop, %0% ; For each command line argument (conf file)
 	}	
 }
 
+if 0 > 0 ; If there were command line arguments
+{
+	; We are in "batch mode" and should not persist past the end
+	exitapp
+}
+
 return
 
 GuiEscape:
