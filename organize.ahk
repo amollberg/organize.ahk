@@ -57,6 +57,7 @@ Loop, %0% ; For each command line argument (conf file)
 		ReplaceMask           := Match_ReplaceMask
 		OverwriteIfNotOlder   := (Match_OverwriteIfNotOlder <> "") ? 1 : 0
 		OverwriteIfNotSmaller := (Match_OverwriteIfNotSmaller <> "") ? 1 : 0
+		DoRecycle             := False ; Dummy value TODO: modify conf parsing for this
 		
 		GuiControl,, LoopPattern, %LoopPattern%
 		GuiControl,, FindMask, %FindMask%
@@ -65,7 +66,7 @@ Loop, %0% ; For each command line argument (conf file)
 		GuiControl,, OverwriteIfNotOlder, %OverwriteIfNotOlder%
 		GuiControl,, OverwriteIfNotSmaller, %OverwriteIfNotSmaller%
 		
-		Organize(Match_LoopPattern, IncludeSubfolders, OverwriteIfNotOlder, OverwriteIfNotSmaller, Match_FindMask, Match_ReplaceMask)
+		Organize(Match_LoopPattern, IncludeSubfolders, OverwriteIfNotOlder, OverwriteIfNotSmaller, Match_FindMask, Match_ReplaceMask, DoRecycle)
 	}	
 }
 
@@ -89,8 +90,9 @@ updateExample:
 	MAX_EXAMPLE_LOOP_FILES = 2000
 	changedN = 0
 	unchangedN = 0
-	if (LoopPattern <> Last_LoopPattern OR IncludeSubfolders <> Last_IncludeSubfolders OR FindMask <> Last_FindMask OR ReplaceMask <> Last_ReplaceMask)
+	if (LoopPattern <> Last_LoopPattern OR IncludeSubfolders <> Last_IncludeSubfolders OR FindMask <> Last_FindMask OR ReplaceMask <> Last_ReplaceMask OR Last_DoRecycle <> DoRecycle)
 	{
+		Last_DoRecycle := DoRecycle
 		Last_FindMask := FindMask
 		Last_ReplaceMask := ReplaceMask
 		fileCount = 0
@@ -120,20 +122,24 @@ updateExample:
 			if(A_LoopFileDir)
 				OldPath = %A_LoopFileDir%\%OldPath%
 			ExampleInput := OldPath 
-			ExampleOutput := RegExReplace(ExampleInput, FindMask, ReplaceMask)
-			if (ExampleInput = ExampleOutput)
+
+			if (RegExMatch(ExampleInput, FindMask))
 			{
-				ExampleUnchanged .= ExampleInput "`n"
-				unchangedN++
-			}
-			else
-			{
+				if DoRecycle
+					ExampleOutput := "[Recycle bin]"
+				else
+					ExampleOutput := RegExReplace(ExampleInput, FindMask, ReplaceMask)
+
 				ExampleChanged .= ExampleInput "`n"
 				ExampleChangedTo .= ExampleOutput "`n"
 				changedN++
 			}
-			
-			
+			else
+			{
+				ExampleUnchanged .= ExampleInput "`n"
+				unchangedN++
+			}
+
 			if(unchangedN >= MAX_EXAMPLE_FILES or changedN >= MAX_EXAMPLE_FILES)
 				break	
 		}
@@ -166,11 +172,11 @@ return
 
 StartOrganize:
 	Gui, submit, nohide
-	Organize(LoopPattern, IncludeSubfolders, OverwriteIfNotOlder, OverwriteIfNotSmaller, FindMask, ReplaceMask)
+	Organize(LoopPattern, IncludeSubfolders, OverwriteIfNotOlder, OverwriteIfNotSmaller, FindMask, ReplaceMask, DoRecycle)
 return
 
 
-Organize(LoopPattern, IncludeSubfolders, OverwriteIfNotOlder, OverwriteIfNotSmaller, FindMask, ReplaceMask)
+Organize(LoopPattern, IncludeSubfolders, OverwriteIfNotOlder, OverwriteIfNotSmaller, FindMask, ReplaceMask, DoRecycle)
 {
 	GuiControl, Disable, StartOrganize
 	PrepareMasks(FindMask, ReplaceMask)
@@ -190,34 +196,49 @@ Organize(LoopPattern, IncludeSubfolders, OverwriteIfNotOlder, OverwriteIfNotSmal
 		OldPath = %A_LoopFileName%
 		if(A_LoopFileDir)
 			OldPath = %A_LoopFileDir%\%OldPath%
-		NewPath	:= RegExReplace(OldPath, FindMask, ReplaceMask)
 
-		
-		SlashPos := InStr(NewPath,"\",false,0)
-		
-		NewFolder := false
-		if(SlashPos)
-			NewFolder := Substr(NewPath, 1,SlashPos-1)
-		
-		if(NewFolder)
-			FileCreateDir, %NewFolder%
-
-		if(OldPath <> NewPath)
+		if(RegExMatch(OldPath, FindMask)) ;OldPath <> NewPath OR DoRecycle)
 		{
-			ifExist, %NewPath%
+			; Compute new path
+			if DoRecycle
+				NewPath	:= "[Recycle bin]"
+			else
+				NewPath	:= RegExReplace(OldPath, FindMask, ReplaceMask)
+
+			; Create destination folder if necessary
+			if not DoRecycle
 			{
-				FileGetSize TargetSize, %NewPath%
-				FileGetSize SourceSize, %OldPath%
-				FileGetTime, TargetDate, %NewPath%
-				FileGetTime, SourceDate, %OldPath%
-				DateDiff := SourceDate
-				EnvSub, DateDiff, TargetDate, Seconds ; Source - Target
-				if ((OverwriteIfNotOlder and DateDiff >= 0) or (OverwriteIfNotSmaller and SourceSize >= TargetSize))
-					FileMove, %OldPath%, %NewPath%, 1     
+				SlashPos := InStr(NewPath,"\",false,0)
+				NewFolder := false
+				if(SlashPos)
+					NewFolder := Substr(NewPath, 1,SlashPos-1)
+				if(NewFolder)
+					FileCreateDir, %NewFolder%
+			}
+
+			; Perform the move action
+			if DoRecycle
+			{
+				FileRecycle, %OldPath%
 			}
 			else
-				FileMove, %OldPath%, %NewPath%
-			
+			{
+				ifExist, %NewPath%
+				{
+					FileGetSize TargetSize, %NewPath%
+					FileGetSize SourceSize, %OldPath%
+					FileGetTime, TargetDate, %NewPath%
+					FileGetTime, SourceDate, %OldPath%
+					DateDiff := SourceDate
+					EnvSub, DateDiff, TargetDate, Seconds ; Source - Target
+					if ((OverwriteIfNotOlder and DateDiff >= 0) or (OverwriteIfNotSmaller and SourceSize >= TargetSize))
+						FileMove, %OldPath%, %NewPath%, 1
+				}
+				else
+					FileMove, %OldPath%, %NewPath%
+			}
+
+
 			if ErrorLevel = 0
 			{
 				if nRowsChanged < 100
