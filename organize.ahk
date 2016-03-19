@@ -45,7 +45,7 @@ Loop, %0% ; For each command line argument (conf file)
 	{
 		if A_LoopReadLine = 
 			continue
-		RegexMatch(A_LoopReadLine, "iJ)^((In|Among(st)?) )*(?P<LoopPattern>.*?) (?P<IncludeSubfolders>including subfolders )?find (?P<FindMask>.*?) (and )?move to (?P<ReplaceMask>.*?)( overwrit(ing|e) if (?:(?P<OverwriteIfNotOlder>newer)|(?P<OverwriteIfNotSmaller>larger))( or (?:(?P<OverwriteIfNotOlder>newer)|(?P<OverwriteIfNotSmaller>larger)))*)*\w*?$", Match_)
+		RegexMatch(A_LoopReadLine, "iJ)^((In|Among(st)?) )*(?P<LoopPattern>.*?) (?P<IncludeSubfolders>including subfolders )?find (?P<FindMask>.*?) (and )?(?:(move to (?P<ReplaceMask>.*?))|(?P<DoRecycle>recycle))( overwrit(ing|e) if (?:(?P<OverwriteIfNotOlder>newer)|(?P<OverwriteIfNotSmaller>larger))( or (?:(?P<OverwriteIfNotOlder>newer)|(?P<OverwriteIfNotSmaller>larger)))*)*\w*?$", Match_)
 		If ErrorLevel
 		{
 			msgbox, Syntax error %ErrorLevel% in file "%ConfFile%":`n "%A_LoopReadLine%"
@@ -57,8 +57,8 @@ Loop, %0% ; For each command line argument (conf file)
 		ReplaceMask           := Match_ReplaceMask
 		OverwriteIfNotOlder   := (Match_OverwriteIfNotOlder <> "") ? 1 : 0
 		OverwriteIfNotSmaller := (Match_OverwriteIfNotSmaller <> "") ? 1 : 0
-		DoRecycle             := False ; Dummy value TODO: modify conf parsing for this
-		
+		DoRecycle             := (Match_DoRecycle <> "") ? 1 : 0
+
 		GuiControl,, LoopPattern, %LoopPattern%
 		GuiControl,, FindMask, %FindMask%
 		GuiControl,, ReplaceMask, %ReplaceMask%
