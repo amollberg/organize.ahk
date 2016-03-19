@@ -18,7 +18,9 @@ Gui, add, progress, w100 BackgroundFFFFFF vProgressBar
 
 Gui, add, edit, ys vLoopPattern gUpdateExample ; Start a new column within this section.
 Gui, add, edit, vFindMask gUpdateExample
-Gui, add, edit, vReplaceMask gUpdateExample
+Gui, add, edit, section vReplaceMask gUpdateExample ; Save position ...
+
+Gui, add, checkbox, ys+5 vDoRecycle gRecycleCheckboxEvent, Recycle bin ; ... Use same y-position but new column
 
 Gui, add, text, section x10, Unchanged:
 Gui, add, edit, xs w300 -Wrap vExampleUnchanged r%MAX_EXAMPLE_FILES%
@@ -150,6 +152,17 @@ updateExample:
 	GuiControl,,ExampleChanged, %ExampleChanged%
 	GuiControl,,ExampleChangedTo, %ExampleChangedTo%
 return
+
+RecycleCheckboxEvent:
+	Gui, submit, nohide
+	if DoRecycle 
+	{
+		GuiControl, Disable, ReplaceMask
+	} else {
+		GuiControl, Enable, ReplaceMask
+	}
+return
+
 
 StartOrganize:
 	Gui, submit, nohide
