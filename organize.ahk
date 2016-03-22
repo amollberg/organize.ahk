@@ -12,6 +12,7 @@ Gui, add, text,, Find:
 Gui, add, text,, Move to:
 Gui, add, checkbox, vIncludeSubfolders, Include Subfolders
 Gui, add, button,default gStartOrganize vStartOrganize,Organize!
+Gui, add, checkbox, vOverwriteAlways gOverwriteAlwaysCheckboxEvent, Overwrite always
 Gui, add, checkbox, vOverwriteIfNotOlder, Overwrite if newer or same
 Gui, add, checkbox, vOverwriteIfNotSmaller, Overwrite if larger or same
 Gui, add, progress, w100 BackgroundFFFFFF vProgressBar
@@ -45,7 +46,7 @@ Loop, %0% ; For each command line argument (conf file)
 	{
 		if A_LoopReadLine = 
 			continue
-		RegexMatch(A_LoopReadLine, "iJ)^((In|Among(st)?) )*(?P<LoopPattern>.*?) (?P<IncludeSubfolders>including subfolders )?find (?P<FindMask>.*?) (and )?(?:(move to (?P<ReplaceMask>.*?))|(?P<DoRecycle>recycle))( overwrit(ing|e) if (?:(?P<OverwriteIfNotOlder>newer)|(?P<OverwriteIfNotSmaller>larger))( or (?:(?P<OverwriteIfNotOlder>newer)|(?P<OverwriteIfNotSmaller>larger)))*)*\w*?$", Match_)
+		RegexMatch(A_LoopReadLine, "iJ)^((In|Among(st)?) )*(?P<LoopPattern>.*?) (?P<IncludeSubfolders>including subfolders )?find (?P<FindMask>.*?) (and )?(?:(move to (?P<ReplaceMask>.*?))|(?P<DoRecycle>recycle))( overwrit(ing|e) (?:(?P<OverwriteAlways>always)|if (?:(?P<OverwriteIfNotOlder>newer)|(?P<OverwriteIfNotSmaller>larger))( or (?:(?P<OverwriteIfNotOlder>newer)|(?P<OverwriteIfNotSmaller>larger)))*))*\w*?$", Match_)
 		If ErrorLevel
 		{
 			msgbox, Syntax error %ErrorLevel% in file "%ConfFile%":`n "%A_LoopReadLine%"
@@ -55,6 +56,7 @@ Loop, %0% ; For each command line argument (conf file)
 		IncludeSubfolders     := (Match_IncludeSubfolders <> "") ? 1 : 0
 		FindMask              := Match_FindMask
 		ReplaceMask           := Match_ReplaceMask
+		OverwriteAlways       := (Match_OverwriteAlways <> "") ? 1 : 0
 		OverwriteIfNotOlder   := (Match_OverwriteIfNotOlder <> "") ? 1 : 0
 		OverwriteIfNotSmaller := (Match_OverwriteIfNotSmaller <> "") ? 1 : 0
 		DoRecycle             := (Match_DoRecycle <> "") ? 1 : 0
@@ -63,11 +65,12 @@ Loop, %0% ; For each command line argument (conf file)
 		GuiControl,, FindMask, %FindMask%
 		GuiControl,, ReplaceMask, %ReplaceMask%
 		GuiControl,, IncludeSubfolders, %IncludeSubfolders%
+		GuiControl,, OverwriteAlways, %OverwriteAlways%
 		GuiControl,, OverwriteIfNotOlder, %OverwriteIfNotOlder%
 		GuiControl,, OverwriteIfNotSmaller, %OverwriteIfNotSmaller%
 		GuiControl,, DoRecycle, %DoRecycle%
 		
-		Organize(Match_LoopPattern, IncludeSubfolders, OverwriteIfNotOlder, OverwriteIfNotSmaller, Match_FindMask, Match_ReplaceMask, DoRecycle)
+		Organize(Match_LoopPattern, IncludeSubfolders, OverwriteAlways, OverwriteIfNotOlder, OverwriteIfNotSmaller, Match_FindMask, Match_ReplaceMask, DoRecycle)
 	}	
 }
 
@@ -160,6 +163,18 @@ updateExample:
 	GuiControl,,ExampleChangedTo, %ExampleChangedTo%
 return
 
+OverwriteAlwaysCheckboxEvent:
+	Gui, submit, nohide
+	if OverwriteAlways
+	{
+		GuiControl, Disable, OverwriteIfNotOlder
+		GuiControl, Disable, OverwriteIfNotSmaller
+	} else {
+		GuiControl, Enable, OverwriteIfNotOlder
+		GuiControl, Enable, OverwriteIfNotSmaller
+	}
+return
+
 RecycleCheckboxEvent:
 	Gui, submit, nohide
 	if DoRecycle 
@@ -173,11 +188,11 @@ return
 
 StartOrganize:
 	Gui, submit, nohide
-	Organize(LoopPattern, IncludeSubfolders, OverwriteIfNotOlder, OverwriteIfNotSmaller, FindMask, ReplaceMask, DoRecycle)
+	Organize(LoopPattern, IncludeSubfolders, OverwriteAlways, OverwriteIfNotOlder, OverwriteIfNotSmaller, FindMask, ReplaceMask, DoRecycle)
 return
 
 
-Organize(LoopPattern, IncludeSubfolders, OverwriteIfNotOlder, OverwriteIfNotSmaller, FindMask, ReplaceMask, DoRecycle)
+Organize(LoopPattern, IncludeSubfolders, OverwriteAlways, OverwriteIfNotOlder, OverwriteIfNotSmaller, FindMask, ReplaceMask, DoRecycle)
 {
 	GuiControl, Disable, StartOrganize
 	PrepareMasks(FindMask, ReplaceMask)
@@ -232,7 +247,7 @@ Organize(LoopPattern, IncludeSubfolders, OverwriteIfNotOlder, OverwriteIfNotSmal
 					FileGetTime, SourceDate, %OldPath%
 					DateDiff := SourceDate
 					EnvSub, DateDiff, TargetDate, Seconds ; Source - Target
-					if ((OverwriteIfNotOlder and DateDiff >= 0) or (OverwriteIfNotSmaller and SourceSize >= TargetSize))
+					if (OverwriteAlways or (OverwriteIfNotOlder and DateDiff >= 0) or (OverwriteIfNotSmaller and SourceSize >= TargetSize))
 						FileMove, %OldPath%, %NewPath%, 1
 				}
 				else
