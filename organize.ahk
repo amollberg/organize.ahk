@@ -65,6 +65,7 @@ Loop, %0% ; For each command line argument (conf file)
 		GuiControl,, IncludeSubfolders, %IncludeSubfolders%
 		GuiControl,, OverwriteIfNotOlder, %OverwriteIfNotOlder%
 		GuiControl,, OverwriteIfNotSmaller, %OverwriteIfNotSmaller%
+		GuiControl,, DoRecycle, %DoRecycle%
 		
 		Organize(Match_LoopPattern, IncludeSubfolders, OverwriteIfNotOlder, OverwriteIfNotSmaller, Match_FindMask, Match_ReplaceMask, DoRecycle)
 	}	
