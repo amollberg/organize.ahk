@@ -16,7 +16,7 @@ Use `<a>`, `<b>` ... to match any character in the source file name. These same 
 ## .conf files
 The syntax is:
 
-`Among <global file pattern> [including subfolders] find <source pattern> and [recycle | move to <destination pattern> [overwriting if [newer or] [larger]]]`
+`Among <global file pattern> [including subfolders] find <source pattern> [case-insensitive] and [recycle | move to <destination pattern> [overwriting if [newer or] [larger]]]`
 
 See demo.conf for an example.
 
