@@ -18,10 +18,11 @@ Gui, add, checkbox, vOverwriteIfNotSmaller, Overwrite if larger or same
 Gui, add, progress, w100 BackgroundFFFFFF vProgressBar
 
 Gui, add, edit, ys vLoopPattern gUpdateExample ; Start a new column within this section.
-Gui, add, edit, vFindMask gUpdateExample
-Gui, add, edit, section vReplaceMask gUpdateExample ; Save position ...
+Gui, add, edit, section vFindMask gUpdateExample
+Gui, add, edit, vReplaceMask gUpdateExample ; Save position ...
 
-Gui, add, checkbox, ys+5 vDoRecycle gRecycleCheckboxEvent, Recycle bin ; ... Use same y-position but new column
+Gui, add, checkbox, ys+5 vCaseInsensitive gCaseInsensitiveCheckboxEvent, Case-insensitive ; ... Use same y-position but new column
+Gui, add, checkbox, yp+25 vDoRecycle gRecycleCheckboxEvent, Recycle bin ; Place below previous checkbox
 
 Gui, add, text, section x10, Unchanged:
 Gui, add, edit, xs w300 -Wrap vExampleUnchanged r%MAX_EXAMPLE_FILES%
@@ -29,11 +30,6 @@ Gui, add, text, ys section , Changed:
 Gui, add, edit, xs w300 -Wrap vExampleChanged r%MAX_EXAMPLE_FILES%
 Gui, add, text, ys section, To:
 Gui, add, edit, xs w300 -Wrap vExampleChangedTo r%MAX_EXAMPLE_FILES%
-
-
-
-
-
 
 Gui, show
 
@@ -46,7 +42,7 @@ Loop, %0% ; For each command line argument (conf file)
 	{
 		if A_LoopReadLine = 
 			continue
-		RegexMatch(A_LoopReadLine, "iJ)^((In|Among(st)?) )*(?P<LoopPattern>.*?) (?P<IncludeSubfolders>including subfolders )?find (?P<FindMask>.*?) (and )?(?:(move to (?P<ReplaceMask>.*?))|(?P<DoRecycle>recycle))( overwrit(ing|e) (?:(?P<OverwriteAlways>always)|if (?:(?P<OverwriteIfNotOlder>newer)|(?P<OverwriteIfNotSmaller>larger))( or (?:(?P<OverwriteIfNotOlder>newer)|(?P<OverwriteIfNotSmaller>larger)))*))*\w*?$", Match_)
+		RegexMatch(A_LoopReadLine, "iJ)^((In|Among(st)?) )*(?P<LoopPattern>.*?) (?P<IncludeSubfolders>including subfolders )?find (?P<FindMask>.*?) (?P<CaseInsensitive>case[- ]?insensitive )?(and )?(?:(move to (?P<ReplaceMask>.*?))|(?P<DoRecycle>recycle))( overwrit(ing|e) (?:(?P<OverwriteAlways>always)|if (?:(?P<OverwriteIfNotOlder>newer)|(?P<OverwriteIfNotSmaller>larger))( or (?:(?P<OverwriteIfNotOlder>newer)|(?P<OverwriteIfNotSmaller>larger)))*))*\w*?$", Match_)
 		If ErrorLevel
 		{
 			msgbox, Syntax error %ErrorLevel% in file "%ConfFile%":`n "%A_LoopReadLine%"
@@ -60,6 +56,7 @@ Loop, %0% ; For each command line argument (conf file)
 		OverwriteIfNotOlder   := (Match_OverwriteIfNotOlder <> "") ? 1 : 0
 		OverwriteIfNotSmaller := (Match_OverwriteIfNotSmaller <> "") ? 1 : 0
 		DoRecycle             := (Match_DoRecycle <> "") ? 1 : 0
+		CaseInsensitive       := (Match_CaseInsensitive <> "") ? 1 : 0
 
 		GuiControl,, LoopPattern, %LoopPattern%
 		GuiControl,, FindMask, %FindMask%
@@ -69,8 +66,9 @@ Loop, %0% ; For each command line argument (conf file)
 		GuiControl,, OverwriteIfNotOlder, %OverwriteIfNotOlder%
 		GuiControl,, OverwriteIfNotSmaller, %OverwriteIfNotSmaller%
 		GuiControl,, DoRecycle, %DoRecycle%
+		GuiControl,, CaseInsensitive, %CaseInsensitive%
 		
-		Organize(Match_LoopPattern, IncludeSubfolders, OverwriteAlways, OverwriteIfNotOlder, OverwriteIfNotSmaller, Match_FindMask, Match_ReplaceMask, DoRecycle)
+		Organize(Match_LoopPattern, IncludeSubfolders, OverwriteAlways, OverwriteIfNotOlder, OverwriteIfNotSmaller, Match_FindMask, Match_ReplaceMask, DoRecycle, CaseInsensitive)
 	}	
 }
 
@@ -86,15 +84,17 @@ GuiEscape:
 GuiClose:
 ExitApp
 
+haveSubmitted := false
 updateExample:
-	Gui, submit, nohide
+	if not haveSubmitted
+		Gui, submit, nohide
 	ExampleUnchanged = 
 	ExampleChanged = 
 	ExampleChangedTo = 
 	MAX_EXAMPLE_LOOP_FILES = 2000
 	changedN = 0
 	unchangedN = 0
-	if (LoopPattern <> Last_LoopPattern OR IncludeSubfolders <> Last_IncludeSubfolders OR FindMask <> Last_FindMask OR ReplaceMask <> Last_ReplaceMask OR Last_DoRecycle <> DoRecycle)
+	if (LoopPattern <> Last_LoopPattern OR IncludeSubfolders <> Last_IncludeSubfolders OR FindMask <> Last_FindMask OR ReplaceMask <> Last_ReplaceMask OR Last_DoRecycle <> DoRecycle OR Last_CaseInsensitive <> CaseInsensitive)
 	{
 		Last_DoRecycle := DoRecycle
 		Last_FindMask := FindMask
@@ -113,7 +113,7 @@ updateExample:
 		Last_LoopPattern 		:= LoopPattern
 		Last_IncludeSubfolders  := IncludeSubfolders
 		
-		PrepareMasks(FindMask, ReplaceMask)
+		PrepareMasks(FindMask, ReplaceMask, CaseInsensitive)
 		
 		loop, %LoopPattern%,,%IncludeSubfolders%
 		{
@@ -161,10 +161,14 @@ updateExample:
 	GuiControl,,ExampleUnchanged, %ExampleUnchanged%
 	GuiControl,,ExampleChanged, %ExampleChanged%
 	GuiControl,,ExampleChangedTo, %ExampleChangedTo%
+	; Reset the flag until the next call
+	haveSubmitted := false
 return
 
 OverwriteAlwaysCheckboxEvent:
 	Gui, submit, nohide
+	; Signal so that UpdateExample does not re-submit gui data (throws away old)
+	haveSubmitted := true
 	if OverwriteAlways
 	{
 		GuiControl, Disable, OverwriteIfNotOlder
@@ -173,29 +177,36 @@ OverwriteAlwaysCheckboxEvent:
 		GuiControl, Enable, OverwriteIfNotOlder
 		GuiControl, Enable, OverwriteIfNotSmaller
 	}
+	gosub UpdateExample
 return
 
 RecycleCheckboxEvent:
 	Gui, submit, nohide
+	haveSubmitted := true
 	if DoRecycle 
 	{
 		GuiControl, Disable, ReplaceMask
 	} else {
 		GuiControl, Enable, ReplaceMask
 	}
+	gosub UpdateExample
+return
+
+CaseInsensitiveCheckboxEvent:
+	gosub UpdateExample
 return
 
 
 StartOrganize:
 	Gui, submit, nohide
-	Organize(LoopPattern, IncludeSubfolders, OverwriteAlways, OverwriteIfNotOlder, OverwriteIfNotSmaller, FindMask, ReplaceMask, DoRecycle)
+	Organize(LoopPattern, IncludeSubfolders, OverwriteAlways, OverwriteIfNotOlder, OverwriteIfNotSmaller, FindMask, ReplaceMask, DoRecycle, CaseInsensitive)
 return
 
 
-Organize(LoopPattern, IncludeSubfolders, OverwriteAlways, OverwriteIfNotOlder, OverwriteIfNotSmaller, FindMask, ReplaceMask, DoRecycle)
+Organize(LoopPattern, IncludeSubfolders, OverwriteAlways, OverwriteIfNotOlder, OverwriteIfNotSmaller, FindMask, ReplaceMask, DoRecycle, CaseInsensitive)
 {
 	GuiControl, Disable, StartOrganize
-	PrepareMasks(FindMask, ReplaceMask)
+	PrepareMasks(FindMask, ReplaceMask, CaseInsensitive)
 	FileCount = 0
 	ExampleUnchanged = 
 	ExampleChanged = 
@@ -293,7 +304,7 @@ Organize(LoopPattern, IncludeSubfolders, OverwriteAlways, OverwriteIfNotOlder, O
 	GuiControl, Enable, StartOrganize
 }
 
-PrepareMasks(ByRef FindMask, ByRef ReplaceMask)
+PrepareMasks(ByRef FindMask, ByRef ReplaceMask, CaseInsensitive)
 {
 	FindMask := RegExReplace(FindMask, "iJ)([\.\?\+\[\{\|\(\)\^\$\\])","\$1")
 	StringReplace, FindMask, FindMask, *, [^""><]*, All
@@ -302,6 +313,8 @@ PrepareMasks(ByRef FindMask, ByRef ReplaceMask)
 	ReplaceMask := RegExReplace(ReplaceMask, "i)<(.+?)>","$${$1}")
 	StringReplace, ReplaceMask, ReplaceMask, *, [^""><]*, All
 	FindMask 	= ^%FindMask%$
+	if CaseInsensitive
+		FindMask 	= i)%FindMask%
 }
 
 StrDup(char, n)
