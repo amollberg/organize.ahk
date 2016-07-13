@@ -33,6 +33,8 @@ Gui, add, edit, xs w300 -Wrap vExampleChangedTo r%MAX_EXAMPLE_FILES%
 
 Gui, show
 
+enableExampleUpdate := false
+
 GuiControl,, ProgressBar, BackgroundFFFF33
 
 Loop, %0% ; For each command line argument (conf file)
@@ -77,6 +79,7 @@ if 0 > 0 ; If there were command line arguments
 	; We are in "batch mode" and should not persist past the end
 	exitapp
 }
+enableExampleUpdate := true
 
 return
 
@@ -84,8 +87,11 @@ GuiEscape:
 GuiClose:
 ExitApp
 
+
 haveSubmitted := false
 updateExample:
+	if not enableExampleUpdate
+		return
 	if not haveSubmitted
 		Gui, submit, nohide
 	ExampleUnchanged = 
